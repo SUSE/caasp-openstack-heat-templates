@@ -1,0 +1,9 @@
+---
+parameters:
+  root_password: linux
+  admin_flavor: m1.large
+  master_flavor: m1.large
+  worker_flavor: m1.large
+  external_net: ext-net
+  internal_net_cidr: 172.24.0.0/24
+  dns_nameserver: 172.24.0.2
