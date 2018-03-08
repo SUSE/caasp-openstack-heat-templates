@@ -199,6 +199,7 @@ resources:
     depends_on:
       - external_router_int
     properties:
+      name: caasp-admin
       image: { get_param: image }
       key_name: { get_resource: keypair }
       flavor: { get_param: admin_flavor }
@@ -252,6 +253,7 @@ resources:
     depends_on:
       - external_router_int
     properties:
+      name: caasp-master
       image: { get_param: image }
       key_name: { get_resource: keypair }
       flavor: { get_param: master_flavor }
@@ -313,6 +315,7 @@ resources:
       resource:
         type: OS::Nova::Server
         properties:
+          name: caasp-worker-%index%
           image: { get_param: image }
           key_name: { get_resource: keypair }
           flavor: { get_param: worker_flavor }
