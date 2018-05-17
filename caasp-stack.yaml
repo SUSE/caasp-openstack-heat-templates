@@ -79,7 +79,6 @@ resources:
           template: {list_join: ['-', [{get_param: 'OS::stack_name'}, 'caasp-keypair']]}
           params:
             ".": "-"
-      public_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDvhWKN/uRo0k2RP6xSOomGpS0xsjWtjrZSd8pUGJFiCUICXGcZsGHbsO45Lmuct3opMjsMfjnh3aEULWKZF1nykDhS2+FSP1cckYi34MnxN69TOtU9ko8/Mo9bCgfD80DZ0gjAdLBtuua9saFKPnKcfJrnJUHdGSt67NiNSmIk2u5aMKun7LPZwNKZOt2I+n0SEEYIbDeitP/AW1iEIlYZ2Kk+/DQfl7xrUB5sS3ree++KmnTOZXq+8K9NgHnaJodWx49TxWm+VcthAJcFNVwirhvUEbJPhJ0TpvNwFtYfzLHT375FhI1rFXQyNv2WTItv+uqL9I74UUmIDOMYDSXn mjura@buggy
 
   internal_network:
     type: OS::Neutron::Net
