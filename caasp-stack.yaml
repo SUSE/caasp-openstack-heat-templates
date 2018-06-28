@@ -198,7 +198,7 @@ resources:
     depends_on:
       - external_router_int
     properties:
-      name: caasp-admin
+      name: { list_join: ['-', [{get_param: 'OS::stack_name'}, 'admin']] }
       image: { get_param: image }
       key_name: { get_resource: keypair }
       flavor: { get_param: admin_flavor }
@@ -252,7 +252,7 @@ resources:
     depends_on:
       - external_router_int
     properties:
-      name: caasp-master
+      name: { list_join: ['-', [{get_param: 'OS::stack_name'}, 'master']] }
       image: { get_param: image }
       key_name: { get_resource: keypair }
       flavor: { get_param: master_flavor }
@@ -304,14 +304,12 @@ resources:
       port_id: { get_resource: master_port }
 
   worker:
-    type: OS::Heat::AutoScalingGroup
+    type: OS::Heat::ResourceGroup
     depends_on:
       - external_router_int
     properties:
-      min_size: { get_param: worker_count }
-      desired_capacity: { get_param: worker_count }
-      max_size: { get_param: worker_count }
-      resource:
+      count: { get_param: worker_count }
+      resource_def:
         type: OS::Nova::Server
         properties:
           name: caasp-worker-%index%
