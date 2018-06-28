@@ -335,11 +335,12 @@ resources:
 
                 chpasswd:
                   list: |
-                    root:linux
+                    root:$root_password
                   expire: False
 
                 suse_caasp:
                   role: cluster
                   admin_node: $admin_node
               params:
-                $admin_node: {get_attr: [admin, first_address]}
+                $admin_node: { get_attr: [admin, first_address] }
+                $root_password: { get_param: root_password }
