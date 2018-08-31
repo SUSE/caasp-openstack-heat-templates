@@ -37,11 +37,11 @@ parameters:
     default: floating
   internal_net_cidr:
     type: string
-    description: Private network range which servers get deployed
+    description: Private network range which servers get deployed. Make sure this doesn't conflict with the any IP addresses CaaSP uses (e.g. the dns_cluster_ip).
     default: 172.28.0.0/24
   dns_nameserver:
     type: string
-    description: Address of a dns nameserver reachable
+    description: Address of a dns nameserver reachable.
     default: 172.28.0.2
   admin_flavor:
     type: string
