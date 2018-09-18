@@ -1,0 +1,426 @@
+heat_template_version: 2016-10-14
+
+description: Template to create a CaaSP cluster on OpenStack
+
+parameter_groups:
+  - label: general
+    description: General Parameters
+    parameters:
+      - image
+      - root_password
+
+  - label: sizing
+    description: Sizing Parameters
+    parameters:
+      - admin_flavor
+      - master_flavor
+      - worker_flavor
+      - worker_count
+      - master_count
+
+  - label: network
+    description: Network Parameters
+    parameters:
+      - external_net
+      - internal_net_cidr
+      - dns_nameserver
+      - master_lb_port_1
+      - master_port_1
+      - master_lb_port_2
+      - master_port_2
+      - master_lb_provider
+
+parameters:
+  image:
+    type: string
+    description: Name of image to use for servers
+    constraints:
+      - custom_constraint: glance.image
+  external_net:
+    type: string
+    description: >
+      Name or ID of public network for which floating IP addresses will be allocated
+    default: floating
+  internal_net_cidr:
+    type: string
+    description: Private network range which servers get deployed. Make sure this doesn't conflict with the any IP addresses CaaSP uses (e.g. the dns_cluster_ip).
+    default: 172.28.0.0/24
+  dns_nameserver:
+    type: string
+    description: Address of a dns nameserver reachable.
+    default: 172.28.0.2
+  admin_flavor:
+    type: string
+    description: Admin Flavor
+    default: m1.large
+    constraints:
+      - custom_constraint: nova.flavor
+  master_flavor:
+    type: string
+    description: Master Flavor
+    default: m1.large
+    constraints:
+      - custom_constraint: nova.flavor
+  worker_flavor:
+    type: string
+    description: Worker Flavor
+    default: m1.large
+    constraints:
+      - custom_constraint: nova.flavor
+  worker_count:
+    type: number
+    description: Number of Worker nodes to boot
+    default: 5
+  master_count:
+    type: number
+    description: Number of Master nodes to boot
+    default: 3
+  master_lb_port_1:
+    type: number
+    description: External load balancer port for master api
+    default: 6443
+  master_port_1:
+    type: number
+    description: Master api port
+    default: 6443
+  master_lb_port_2:
+    type: number
+    description: External load balancer port for master api
+    default: 32000
+  master_port_2:
+    type: number
+    description: Master api port
+    default: 32000
+  master_lb_provider:
+    type: string
+    description: Master api load balancer provider, haproxy or octavia
+    default: haproxy
+    constraints:
+      - allowed_values:
+          - haproxy
+          - octavia
+  root_password:
+    type: string
+    description: Root Password for the VMs
+    default: linux
+
+resources:
+  keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name:
+        str_replace:
+          template: {list_join: ['-', [{get_param: 'OS::stack_name'}, 'caasp-keypair']]}
+          params:
+            ".": "-"
+
+  internal_network:
+    type: OS::Neutron::Net
+    properties:
+      name:
+        str_replace:
+          template: {list_join: ['-', [{get_param: 'OS::stack_name'}, 'caasp-int-net']]}
+          params:
+            ".": "-"
+
+  internal_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      cidr: {get_param: internal_net_cidr}
+      network: {get_resource: internal_network}
+      dns_nameservers:
+        - {get_param: dns_nameserver}
+
+  external_router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: {get_param: external_net}
+
+  external_router_int:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: {get_resource: external_router}
+      subnet: {get_resource: internal_subnet}
+
+  secgroup_base:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules:
+        - protocol: icmp
+        - protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - protocol: tcp
+          port_range_min: 2379
+          port_range_max: 2379
+        - protocol: udp
+          port_range_min: 8472
+          port_range_max: 8472
+
+  secgroup_admin:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules:
+        - protocol: tcp
+          port_range_min: 80
+          port_range_max: 80
+        - protocol: tcp
+          port_range_min: 443
+          port_range_max: 443
+        - protocol: tcp
+          port_range_min: 4505
+          port_range_max: 4506
+        - protocol: tcp
+          port_range_min: 389
+          port_range_max: 389
+
+  secgroup_master:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules:
+        - protocol: tcp
+          port_range_min: 2380
+          port_range_max: 2380
+        - protocol: tcp
+          port_range_min: 6443
+          port_range_max: 6444
+        - protocol: udp
+          port_range_min: 8285
+          port_range_max: 8285
+        - protocol: tcp
+          port_range_min: 30000
+          port_range_max: 32768
+        - protocol: udp
+          port_range_min: 30000
+          port_range_max: 32768
+
+  secgroup_worker:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules:
+        - protocol: tcp
+          port_range_min: 80
+          port_range_max: 80
+        - protocol: tcp
+          port_range_min: 443
+          port_range_max: 443
+        - protocol: tcp
+          port_range_min: 8080
+          port_range_max: 8080
+        - protocol: tcp
+          port_range_min: 8081
+          port_range_max: 8081
+        - protocol: tcp
+          port_range_min: 2380
+          port_range_max: 2380
+        - protocol: tcp
+          port_range_min: 10250
+          port_range_max: 10250
+        - protocol: udp
+          port_range_min: 8285
+          port_range_max: 8285
+        - protocol: tcp
+          port_range_min: 30000
+          port_range_max: 32768
+        - protocol: udp
+          port_range_min: 30000
+          port_range_max: 32768
+
+  admin:
+    type: OS::Nova::Server
+    depends_on:
+      - external_router_int
+    properties:
+      name: { list_join: ['-', [{get_param: 'OS::stack_name'}, 'admin']] }
+      image: { get_param: image }
+      key_name: { get_resource: keypair }
+      flavor: { get_param: admin_flavor }
+      networks:
+        - port: { get_resource: admin_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #cloud-config
+
+            disable_root: False
+            ssh_deletekeys: False
+            ssh_pwauth: True
+
+            chpasswd:
+              list: |
+                root:$root_password
+              expire: False
+
+            suse_caasp:
+              role: admin
+
+            ntp:
+              enabled: true
+              #servers:
+              #  - ntp1.example.com
+              #  - ntp2.example.com
+              #  - ntp3.example.com
+            runcmd:
+              - /usr/bin/systemctl enable ntpd
+              - /usr/bin/systemctl start ntpd
+          params:
+            $root_password: { get_param: root_password }
+
+  admin_port:
+    type: OS::Neutron::Port
+    depends_on:
+      - external_router_int
+    properties:
+      network: { get_resource: internal_network }
+      security_groups:
+        - { get_resource: secgroup_base }
+        - { get_resource: secgroup_admin }
+
+  admin_floating_ip:
+    type: OS::Neutron::FloatingIP
+    depends_on:
+      - external_router_int
+    properties:
+      floating_network: { get_param: external_net }
+
+  admin_floating_ip_association:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: admin_floating_ip }
+      port_id: { get_resource: admin_port }
+
+  master_resource_group:
+    type: OS::Heat::ResourceGroup
+    depends_on:
+      - external_router_int
+      - master_lb_pool_1
+      - master_lb_pool_2
+    properties:
+      count: { get_param: master_count }
+      resource_def:
+        type: caasp-master.yaml
+        properties:
+          master_name: { list_join: ['-', [{get_param: 'OS::stack_name'}, 'master', '%index%']] }
+          master_flavor: { get_param: master_flavor }
+          master_port_1: { get_param: master_port_1 }
+          master_lb_pool_1: { get_resource: master_lb_pool_1  }
+          master_port_2: { get_param: master_port_2 }
+          master_lb_pool_2: { get_resource: master_lb_pool_2  }
+          admin_node_ip: { get_attr: [admin, first_address] }
+          image: { get_param: image }
+          keypair: { get_resource: keypair }
+          secgroup_base: { get_resource: secgroup_base }
+          secgroup_master: { get_resource: secgroup_master }
+          internal_network: { get_resource: internal_network  }
+          internal_subnet: { get_resource: internal_subnet }
+          root_password: { get_param: root_password }
+
+
+  master_lb:
+    type: OS::Neutron::LBaaS::LoadBalancer
+    depends_on:
+      - external_router_int
+    properties:
+      provider: { get_param: master_lb_provider }
+      vip_subnet: { get_resource: internal_subnet }
+
+  master_lb_listener_1:
+    type: OS::Neutron::LBaaS::Listener
+    depends_on:
+      - external_router_int
+      - master_lb
+    properties:
+      loadbalancer: { get_resource: master_lb }
+      protocol: HTTP
+      protocol_port: { get_param: master_lb_port_1 }
+
+  master_lb_pool_1:
+    type: OS::Neutron::LBaaS::Pool
+    depends_on:
+      - external_router_int
+      - master_lb_listener_1
+    properties:
+      lb_algorithm: ROUND_ROBIN
+      protocol: HTTP
+      listener: { get_resource: master_lb_listener_1 }
+
+  master_lb_listener_2:
+    type: OS::Neutron::LBaaS::Listener
+    depends_on:
+      - external_router_int
+      - master_lb
+    properties:
+      loadbalancer: { get_resource: master_lb }
+      protocol: HTTP
+      protocol_port: { get_param: master_lb_port_2 }
+
+  master_lb_pool_2:
+    type: OS::Neutron::LBaaS::Pool
+    depends_on:
+      - external_router_int
+      - master_lb_listener_2
+    properties:
+      lb_algorithm: ROUND_ROBIN
+      protocol: HTTP
+      listener: { get_resource: master_lb_listener_2 }
+
+  master_lb_floating_ip:
+    depends_on:
+      - external_router_int
+      - master_lb
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: external_net }
+      port_id: { get_attr: [master_lb, vip_port_id ]}
+
+  worker:
+    type: OS::Heat::ResourceGroup
+    depends_on:
+      - external_router_int
+    properties:
+      count: { get_param: worker_count }
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          name: { list_join: ['-', [{get_param: 'OS::stack_name'}, 'worker', '%index%']] }
+          image: { get_param: image }
+          key_name: { get_resource: keypair }
+          flavor: { get_param: worker_flavor }
+          networks:
+            - network: { get_resource: internal_network }
+          security_groups:
+            - { get_resource: secgroup_base }
+            - { get_resource: secgroup_worker }
+          user_data_format: RAW
+          user_data:
+            str_replace:
+              template: |
+                #cloud-config
+
+                disable_root: False
+                ssh_deletekeys: False
+                ssh_pwauth: True
+
+                chpasswd:
+                  list: |
+                    root:$root_password
+                  expire: False
+
+                suse_caasp:
+                  role: cluster
+                  admin_node: $admin_node
+
+                ntp:
+                  enabled: true
+                  #servers:
+                  #  - ntp1.example.com
+                  #  - ntp2.example.com
+                  #  - ntp3.example.com
+                runcmd:
+                  - /usr/bin/systemctl enable ntpd
+                  - /usr/bin/systemctl start ntpd
+              params:
+                $admin_node: { get_attr: [admin, first_address] }
+                $root_password: { get_param: root_password }
