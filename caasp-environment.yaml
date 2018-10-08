@@ -12,3 +12,13 @@ parameters:
   # hostnames won't be resolved.
   internal_net_cidr: 172.28.0.0/24
   dns_nameserver: 172.28.0.2
+  # cpi parameters
+  cpi_auth_url: https://api.keystone.example.net:5000/v3
+  cpi_domain_name: Default
+  cpi_tenant_name: admin
+  cpi_region: RegionOne
+  cpi_username: admin
+  cpi_password: password
+  cpi_monitor_max_retries: 3
+  cpi_bs_version: auto
+  cpi_ignore_volume_az: "true"

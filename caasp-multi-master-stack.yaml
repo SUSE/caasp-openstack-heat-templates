@@ -30,6 +30,19 @@ parameter_groups:
       - master_port_2
       - master_lb_provider
 
+  - label: cpi
+    description: CPI Parameters
+    parameters:
+      - cpi_auth_url
+      - cpi_domain_name
+      - cpi_tenant_name
+      - cpi_region
+      - cpi_username
+      - cpi_password
+      - cpi_monitor_max_retries
+      - cpi_bs_version
+      - cpi_ignore_volume_az
+
 parameters:
   image:
     type: string
@@ -103,6 +116,48 @@ parameters:
     type: string
     description: Root Password for the VMs
     default: linux
+
+  cpi_auth_url:
+    type: string
+    description: Cloud Provider Interface - Keystone API URL
+    default: https://api.keystone.example.net:5000/v3
+  cpi_domain_name:
+    type: string
+    description: Cloud Provider Interface - Keystone domain name
+    default: Default
+  cpi_tenant_name:
+    type: string
+    description: Cloud Provider Interface - Keystone project name
+    default: admin
+  cpi_region:
+    type: string
+    description: Cloud Provider Interface - Keystone region
+    default: RegionOne
+  cpi_username:
+    type: string
+    description: Cloud Provider Interface - Keystone username
+    default: admin
+  cpi_password:
+    type: string
+    description: Cloud Provider Interface - Keystone user password
+  cpi_monitor_max_retries:
+    type: number
+    description: Cloud Provider Interface - Neutron Load balancer monitoring max retries
+    default: 3
+  cpi_bs_version:
+    type: string
+    description: Cloud Provider Interface - Cinder block storage API version
+    default: auto
+    constraints:
+      - allowed_values:
+          - v1
+          - v2
+          - v3
+          - auto
+  cpi_ignore_volume_az:
+    type: string
+    description: Cloud Provider Interface - Ignore Nova and Cinder availability zone
+    default: "true"
 
 resources:
   keypair:
@@ -265,9 +320,37 @@ resources:
             runcmd:
               - /usr/bin/systemctl enable ntpd
               - /usr/bin/systemctl start ntpd
+              - mkdir /etc/caasp/cpi
+              - chmod -R 0755 /etc/caasp/cpi
+
+            write_files:
+              - path: /etc/caasp/cpi/openstack.conf
+                permissions: '0644'
+                content: |
+                  auth-url=$cpi_auth_url
+                  domain-name=$cpi_domain_name
+                  tenant-name=$cpi_tenant_name
+                  region=$cpi_region
+                  username=$cpi_username
+                  password=$cpi_password
+                  subnet-id=$cpi_subnet_id
+                  floating-network-id=$cpi_floating_network_id
+                  monitor-max-retries=$cpi_monitor_max_retries
+                  bs-version=$cpi_bs_version
+                  ignore-volume-az=$cpi_ignore_volume_az
           params:
             $root_password: { get_param: root_password }
-
+            $cpi_auth_url: { get_param: cpi_auth_url }
+            $cpi_domain_name: { get_param: cpi_domain_name }
+            $cpi_tenant_name: { get_param: cpi_tenant_name }
+            $cpi_region: { get_param: cpi_region }
+            $cpi_username: { get_param: cpi_username }
+            $cpi_password: { get_param: cpi_password }
+            $cpi_monitor_max_retries: { get_param: cpi_monitor_max_retries }
+            $cpi_bs_version: { get_param: cpi_bs_version }
+            $cpi_ignore_volume_az: { get_param: cpi_ignore_volume_az }
+            $cpi_floating_network_id: { get_param: external_net }
+            $cpi_subnet_id: { get_resource: internal_subnet }
   admin_port:
     type: OS::Neutron::Port
     depends_on:
