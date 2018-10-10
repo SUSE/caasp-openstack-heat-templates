@@ -221,6 +221,16 @@ resources:
 
             suse_caasp:
               role: admin
+
+            ntp:
+              enabled: true
+              #servers:
+              #  - ntp1.example.com
+              #  - ntp2.example.com
+              #  - ntp3.example.com
+            runcmd:
+              - /usr/bin/systemctl enable ntpd
+              - /usr/bin/systemctl start ntpd
           params:
             $root_password: { get_param: root_password }
 
@@ -276,6 +286,16 @@ resources:
             suse_caasp:
               role: cluster
               admin_node: $admin_node
+
+            ntp:
+              enabled: true
+              #servers:
+              #  - ntp1.example.com
+              #  - ntp2.example.com
+              #  - ntp3.example.com
+            runcmd:
+              - /usr/bin/systemctl enable ntpd
+              - /usr/bin/systemctl start ntpd
           params:
             $admin_node: { get_attr: [admin, first_address] }
             $root_password: { get_param: root_password }
@@ -339,6 +359,16 @@ resources:
                 suse_caasp:
                   role: cluster
                   admin_node: $admin_node
+
+                ntp:
+                  enabled: true
+                  #servers:
+                  #  - ntp1.example.com
+                  #  - ntp2.example.com
+                  #  - ntp3.example.com
+                runcmd:
+                  - /usr/bin/systemctl enable ntpd
+                  - /usr/bin/systemctl start ntpd
               params:
                 $admin_node: { get_attr: [admin, first_address] }
                 $root_password: { get_param: root_password }
