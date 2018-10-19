@@ -1,0 +1,125 @@
+heat_template_version: 2016-10-14
+description: Template to create a CaaSP master and add as master load balancer pool member
+
+parameters:
+  master_name:
+    type: string
+    description: Name of the master
+    default: caasp_master
+  master_flavor:
+    type: string
+    description: Flavor of the master
+    constraints:
+      - custom_constraint: nova.flavor
+  master_port_1:
+    type: string
+    description: Master API port 1
+  master_lb_pool_1:
+    type: string
+    description: Load balancer pool 1
+    constraints:
+      - custom_constraint: neutron.lbaas.pool
+  master_port_2:
+    type: string
+    description: Master port 2
+  master_lb_pool_2:
+    type: string
+    description: Load balancer pool 2
+    constraints:
+      - custom_constraint: neutron.lbaas.pool
+  admin_node_ip:
+    type: string
+    description: IP address of the admin node
+  keypair:
+    type: string
+    description: Nova key value pair
+    constraints:
+      - custom_constraint: nova.keypair
+  secgroup_base:
+    type: string
+    description: Security group base
+    constraints:
+      - custom_constraint: neutron.security_group
+  secgroup_master:
+    type: string
+    description: Security group for master
+    constraints:
+      - custom_constraint: neutron.security_group
+  image:
+    type: string
+    description: test
+    constraints:
+      - custom_constraint: glance.image
+  internal_network:
+    type: string
+    description: Internal network
+    constraints:
+      - custom_constraint: neutron.network
+  internal_subnet:
+    type: string
+    description: internal subnet
+    constraints:
+      - custom_constraint: neutron.subnet
+  root_password:
+    type: string
+    description: root password
+
+resources:
+  master_server:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: master_name }
+      image: { get_param: image }
+      key_name: { get_param: keypair }
+      flavor: { get_param: master_flavor }
+      networks:
+        - network: { get_param: internal_network }
+      security_groups:
+        - { get_param: secgroup_base }
+        - { get_param: secgroup_master }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #cloud-config
+
+            disable_root: False
+            ssh_deletekeys: False
+            ssh_pwauth: True
+
+            chpasswd:
+              list: |
+                root:$root_password
+              expire: False
+            suse_caasp:
+              role: cluster
+              admin_node: $admin_node
+
+            ntp:
+              enabled: true
+              #servers:
+              #  - ntp1.example.com
+              #  - ntp2.example.com
+              #  - ntp3.example.com
+            runcmd:
+              - /usr/bin/systemctl enable ntpd
+              - /usr/bin/systemctl start ntpd
+          params:
+            $admin_node: { get_param: admin_node_ip }
+            $root_password: { get_param: root_password }
+
+  master_pool_member_1:
+    type: OS::Neutron::LBaaS::PoolMember
+    properties:
+      address: { get_attr: [ master_server, first_address ]}
+      subnet: { get_param: internal_subnet }
+      pool: { get_param: master_lb_pool_1 }
+      protocol_port: { get_param: master_port_1 }
+
+  master_pool_member_2:
+    type: OS::Neutron::LBaaS::PoolMember
+    properties:
+      address: { get_attr: [ master_server, first_address ]}
+      subnet: { get_param: internal_subnet }
+      pool: { get_param: master_lb_pool_2 }
+      protocol_port: { get_param: master_port_2 }

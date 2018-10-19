@@ -1,0 +1,19 @@
+---
+parameters:
+  root_password: linux
+  admin_flavor: m1.large
+  master_flavor: m1.large
+  worker_flavor: m1.large
+  worker_count: 2
+  master_count: 3
+  external_net: ext-net
+  # Use this lbaas provider for master api:
+  # octavia OR haproxy
+  master_lb_provider: haproxy
+  # Make sure you use a CIDR that doesn't conflict with the CaaSP IPs:
+  # https://github.com/kubic-project/salt/blob/master/pillar/params.sls#L51
+  # https://github.com/kubic-project/velum/blob/master/app/controllers/setup_controller.rb#L34
+  # If dns_nameserver is the same as CaaSPs dns_cluster_ip then the kube service
+  # hostnames won't be resolved.
+  internal_net_cidr: 172.28.0.0/24
+  dns_nameserver: 172.28.0.2
