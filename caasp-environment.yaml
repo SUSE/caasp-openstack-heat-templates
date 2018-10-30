@@ -1,4 +1,3 @@
----
 parameters:
   root_password: linux
   admin_flavor: m1.large
