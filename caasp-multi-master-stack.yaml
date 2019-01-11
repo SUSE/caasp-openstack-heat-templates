@@ -333,7 +333,7 @@ resources:
       - master_lb
     properties:
       loadbalancer: { get_resource: master_lb }
-      protocol: HTTP
+      protocol: HTTPS
       protocol_port: { get_param: master_lb_port_1 }
 
   master_lb_pool_1:
@@ -343,7 +343,7 @@ resources:
       - master_lb_listener_1
     properties:
       lb_algorithm: ROUND_ROBIN
-      protocol: HTTP
+      protocol: HTTPS
       listener: { get_resource: master_lb_listener_1 }
 
   master_lb_listener_2:
@@ -353,7 +353,7 @@ resources:
       - master_lb
     properties:
       loadbalancer: { get_resource: master_lb }
-      protocol: HTTP
+      protocol: HTTPS
       protocol_port: { get_param: master_lb_port_2 }
 
   master_lb_pool_2:
@@ -363,7 +363,7 @@ resources:
       - master_lb_listener_2
     properties:
       lb_algorithm: ROUND_ROBIN
-      protocol: HTTP
+      protocol: HTTPS
       listener: { get_resource: master_lb_listener_2 }
 
   master_lb_floating_ip:
