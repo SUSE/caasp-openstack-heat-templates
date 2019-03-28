@@ -507,3 +507,7 @@ resources:
               params:
                 $admin_node: { get_attr: [admin, first_address] }
                 $root_password: { get_param: root_password }
+                
+                runcmd:
+                  - transactional-update up
+                  - reboot
