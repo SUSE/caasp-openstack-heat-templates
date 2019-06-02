@@ -155,8 +155,7 @@ resources:
   external_router:
     type: OS::Neutron::Router
     properties:
-      external_gateway_info:
-        network: {get_param: external_net}
+      external_gateway_info: { network: { get_param: external_net },  "enable_snat": True}
 
   external_router_int:
     type: OS::Neutron::RouterInterface
