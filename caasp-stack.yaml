@@ -164,7 +164,7 @@ resources:
       router_id: {get_resource: external_router}
       subnet: {get_resource: internal_subnet}
 
-  secgroup_base:
+  secgroup_admin:
     type: OS::Neutron::SecurityGroup
     properties:
       rules:
@@ -172,17 +172,6 @@ resources:
         - protocol: tcp
           port_range_min: 22
           port_range_max: 22
-        - protocol: tcp
-          port_range_min: 2379
-          port_range_max: 2379
-        - protocol: udp
-          port_range_min: 8472
-          port_range_max: 8472
-
-  secgroup_admin:
-    type: OS::Neutron::SecurityGroup
-    properties:
-      rules:
         - protocol: tcp
           port_range_min: 80
           port_range_max: 80
@@ -200,18 +189,51 @@ resources:
     type: OS::Neutron::SecurityGroup
     properties:
       rules:
+        # ICMP
+        - protocol: icmp
+        # SSH
         - protocol: tcp
-          port_range_min: 2380
-          port_range_max: 2380
-        - protocol: tcp
-          port_range_min: 6443
-          port_range_max: 6444
+          port_range_min: 22
+          port_range_max: 22
+        # Flannel VxLAN Mode from the workers
+        - protocol: udp
+          port_range_min: 8472
+          port_range_max: 8472
+          remote_group_id: { get_resource: secgroup_worker }
+        # Flannel UDP Mode from the workers
         - protocol: udp
           port_range_min: 8285
           port_range_max: 8285
+          remote_group_id: { get_resource: secgroup_worker }
+        # etcd client communication from workers
+        - protocol: tcp
+          port_range_min: 2379
+          port_range_max: 2379
+          remote_group_id: { get_resource: secgroup_worker }
+        # etcd peer communication from workers
+        - protocol: tcp
+          port_range_min: 2380
+          port_range_max: 2380
+          remote_group_id: { get_resource: secgroup_worker }
+        # Kubernetes API from external clients
+        - protocol: tcp
+          port_range_min: 6443
+          port_range_max: 6443
+        # Kubernetes API from admin
+        - protocol: tcp
+          port_range_min: 6444
+          port_range_max: 6444
+          remote_group_id: { get_resource: secgroup_admin }
+        # Kubernetes API from workers
+        - protocol: tcp
+          port_range_min: 6444
+          port_range_max: 6444
+          remote_group_id: { get_resource: secgroup_worker }
+        # Kubernetes NodePort range from external clients
         - protocol: tcp
           port_range_min: 30000
           port_range_max: 32768
+        # Kubernetes NodePort range from external clients
         - protocol: udp
           port_range_min: 30000
           port_range_max: 32768
@@ -220,30 +242,37 @@ resources:
     type: OS::Neutron::SecurityGroup
     properties:
       rules:
+        # ICMP
+        - protocol: icmp
+        # SSH
         - protocol: tcp
-          port_range_min: 80
-          port_range_max: 80
-        - protocol: tcp
-          port_range_min: 443
-          port_range_max: 443
-        - protocol: tcp
-          port_range_min: 8080
-          port_range_max: 8080
-        - protocol: tcp
-          port_range_min: 8081
-          port_range_max: 8081
-        - protocol: tcp
-          port_range_min: 2380
-          port_range_max: 2380
-        - protocol: tcp
-          port_range_min: 10250
-          port_range_max: 10250
+          port_range_min: 22
+          port_range_max: 22
+        # Flannel VxLAN Mode from the workers
+        - protocol: udp
+          port_range_min: 8472
+          port_range_max: 8472
+          remote_group_id: { get_resource: secgroup_master }
+        # Flannel UDP Mode from the masters
         - protocol: udp
           port_range_min: 8285
           port_range_max: 8285
+          remote_group_id: { get_resource: secgroup_master }
+        # etcd client communication from masers
+        - protocol: tcp
+          port_range_min: 2379
+          port_range_max: 2379
+          remote_group_id: { get_resource: secgroup_master }
+        # etcd peer communication from masers
+        - protocol: tcp
+          port_range_min: 2380
+          port_range_max: 2380
+          remote_group_id: { get_resource: secgroup_master }
+        # Kubernetes NodePort range from external clients
         - protocol: tcp
           port_range_min: 30000
           port_range_max: 32768
+        # Kubernetes NodePort range from external clients
         - protocol: udp
           port_range_min: 30000
           port_range_max: 32768
@@ -325,7 +354,6 @@ resources:
     properties:
       network: { get_resource: internal_network }
       security_groups:
-        - { get_resource: secgroup_base }
         - { get_resource: secgroup_admin }
 
   admin_floating_ip:
@@ -391,7 +419,6 @@ resources:
     properties:
       network: { get_resource: internal_network }
       security_groups:
-        - { get_resource: secgroup_base }
         - { get_resource: secgroup_master }
 
   master_floating_ip:
@@ -423,7 +450,6 @@ resources:
           networks:
             - network: { get_resource: internal_network }
           security_groups:
-            - { get_resource: secgroup_base }
             - { get_resource: secgroup_worker }
           user_data_format: RAW
           user_data:
